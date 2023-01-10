@@ -1,35 +1,58 @@
-service: sls-api
+service: metadata-archive-api
 
 frameworkVersion: '3'
 
 custom:
   settings:
-    POSTS_TABLE: posts
+    POSTS_TABLE: metadata
 
 provider:
   name: aws
   runtime: nodejs12.x
   environment: ${self:custom.settings}
   region: ap-south-1
-  iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-      Resource:
-        - "*"
+  iam:
+    role:
+      statements:
+      - Effect: "Allow"
+        Action:
+          - dynamodb:DescribeTable
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+        Resource:
+          - "*"
 
 functions:
-  createPost:
-    handler: handler.createPost
+  storeMetadata:
+    handler: metadataHandler.storeMetadata
     events:
     - http:
-        path: /post
+        path: /metadata
         method: post
+        
+  fetchAllMetadata:
+    handler: metadataHandler.fetchAllMetadata
+    events:
+    - http:
+        path: /metadata
+        method: get
+
+  fetchMetadata:
+    handler: metadataHandler.fetchMetadata
+    events:
+    - http:
+        path: /metadata/{meta_store_id}
+        method: get
+
+  deleteMetadata:
+    handler: metadataHandler.deleteMetadata
+    events:
+    - http:
+        path: /metadata/{meta_store_id}
+        method: delete
   
 resources:
   Resources:
@@ -37,10 +60,10 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-        - AttributeName: "id"
+        - AttributeName: "meta_store_id"
           AttributeType: "S"
         KeySchema:
-        - AttributeName: "id"
+        - AttributeName: "meta_store_id"
           KeyType: "HASH"
         ProvisionedThroughput:
           ReadCapacityUnits: 1
