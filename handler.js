@@ -3,7 +3,7 @@ const AWS = require('aws-sdk');
 const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
 const uuid = require('uuid'); //1.9K (gzipped: 818)
 
-const postsTable = process.env.POSTS_TABLE;
+const metadataTable = process.env.POSTS_TABLE;
 
 function response(statusCode, message) {
   return {
@@ -12,56 +12,79 @@ function response(statusCode, message) {
   }
 }
 
-module.exports.createPost = (event, context, callback) => {
-  if(!event || !event.body) {
-    return callback(null, response(400, { error: 'Request body is incomplete'}))
+function sortByDate(a, b) {
+  if (a.createdAt > b.createAt) {
+    return -1;
+  } else return 1;
+}
+
+module.exports.storeMetadata = (event, context, callback) => {
+  if (!event || !event.body) {
+    return callback(null, response(400, { error: 'Request body is incomplete' }))
   }
-  
+
   const reqBody = JSON.parse(event.body);
 
-  if(!reqBody.title || reqBody.title.trim() === '' || !reqBody.message || reqBody.message.trim() === '') {
-    return callback(null, response(400, { error: 'Post must have a title and message and they must not be empty'}))
-  }
-
-  const post = {
-    id: uuid.v4(),
-    createAt: new Date().toISOString(),
-    userId: 1,
-    title: reqBody.title,
-    message: reqBody.message
+  const metadata = {
+    meta_store_id: uuid.v4(),
+    createAt: new Date().getMilliseconds(),
+    data: reqBody
   };
 
   return db.put({
-    TableName: postsTable,
-    Item: post,
+    TableName: metadataTable,
+    Item: metadata,
   }).promise().then(() => {
-    callback(null, response(201, post))
-  })
-    .catch(err => response(null, response(err.statusCode, err + " : DB insertion failed")))
+    callback(null, response(201, metadata))
+  }).catch(err => response(null, response(err.statusCode, err + " : Metadata is failed to store")))
 }
 
-//Update a post
-module.exports.updatePost = (event, context, callback) => {
-  const id = event.pathParameters.id;
-  const body = JSON.parse(event.body);
-  const paramName = body.paramName;
-  const paramValue = body.paramValue;
+module.exports.fetchAllMetadata = (event, context, callback) => {
+  const querystring = event.queryStringParameters;
+  const limit = querystring.limit || 10;
+  const offset = querystring.offset || 0;
+  const params = {
+    TableName: metadataTable,
+    Limit: limit
+  }
+
+  return db.scan(params)
+    .promise()
+    .then(res => {
+      callback(null, response(200, res.Items.sort(sortByDate)))
+    }).catch(err => response(null, response(err.statusCode, err + " :  Failed to retrieve metadata")))
+}
+
+module.exports.fetchMetadata = (event, context, callback) => {
+  const id = event.pathParameters.meta_store_id;
 
   const params = {
     Key: {
-      id: id
+      meta_store_id: id
     },
-    TableName: postsTable,
-    ConditionExpression: 'set ' + paramName + ' = :v',
-    ExpresionAttributeValues: {
-      ':v': paramValue
-    },
-    ReturnValue: 'ALL_NEW'
-  };
+    TableName: metadataTable
+  }
 
-  return db.update(params)
+  return db.get(params)
     .promise()
     .then(res => {
-      callback(null, response(200, res))
-    })
+      if (res.Item) callback(null, response(200, res.Item))
+      else callback(null, response(404, { error: 'Metadata not found' }))
+    }).catch(err => response(null, response(err.statusCode, err + " :  Failed to retrieve metadata")))
+}
+
+module.exports.deleteMetadata = (event, context, callback) => {
+  const id = event.pathParameters.meta_store_id;
+
+  const params = {
+    Key: {
+      meta_store_id: id
+    },
+    TableName: metadataTable
+  }
+
+  return db.delete(params)
+    .promise()
+    .then(() => callback(null, response(200, { message: 'Metadata ' + id + ' deleted successfully' })))
+    .catch(err => response(null, response(err.statusCode, err + " :  Failed to delete metadata")))
 }
