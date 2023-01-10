@@ -1,0 +1,67 @@
+'use strict';
+const AWS = require('aws-sdk');
+const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
+const uuid = require('uuid'); //1.9K (gzipped: 818)
+
+const postsTable = process.env.POSTS_TABLE;
+
+function response(statusCode, message) {
+  return {
+    statusCode: statusCode,
+    body: JSON.stringify(message)
+  }
+}
+
+module.exports.createPost = (event, context, callback) => {
+  if(!event || !event.body) {
+    return callback(null, response(400, { error: 'Request body is incomplete'}))
+  }
+  
+  const reqBody = JSON.parse(event.body);
+
+  if(!reqBody.title || reqBody.title.trim() === '' || !reqBody.message || reqBody.message.trim() === '') {
+    return callback(null, response(400, { error: 'Post must have a title and message and they must not be empty'}))
+  }
+
+  const post = {
+    id: uuid.v4(),
+    createAt: new Date().toISOString(),
+    userId: 1,
+    title: reqBody.title,
+    message: reqBody.message
+  };
+
+  return db.put({
+    TableName: postsTable,
+    Item: post,
+  }).promise().then(() => {
+    callback(null, response(201, post))
+  })
+    .catch(err => response(null, response(err.statusCode, err + " : DB insertion failed")))
+}
+
+//Update a post
+module.exports.updatePost = (event, context, callback) => {
+  const id = event.pathParameters.id;
+  const body = JSON.parse(event.body);
+  const paramName = body.paramName;
+  const paramValue = body.paramValue;
+
+  const params = {
+    Key: {
+      id: id
+    },
+    TableName: postsTable,
+    ConditionExpression: 'set ' + paramName + ' = :v',
+    ExpresionAttributeValues: {
+      ':v': paramValue
+    },
+    ReturnValue: 'ALL_NEW'
+  };
+
+  return db.update(params)
+    .promise()
+    .then(res => {
+      callback(null, response(200, res))
+    })
+}

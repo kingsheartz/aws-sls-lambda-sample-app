@@ -1,0 +1,51 @@
+service: sls-api
+
+frameworkVersion: '3'
+
+custom:
+  settings:
+    POSTS_TABLE: posts
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  environment: ${self:custom.settings}
+  region: ap-south-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - "arn:aws:dynamodb:$(self:provider.region}:*:table/${self:custom.settings.POSTS_TABLE}"
+
+functions:
+  createPost:
+    handler: handler.createPost
+    events:
+    - http:
+        path: /post
+        method: post
+  
+resources:
+  Resources:
+    PostsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.settings.POSTS_TABLE}
+
+
+serverless config credentials --provider aws --key AKIAZSQ6SYSJGA6M7NEE --secret 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
