@@ -4,7 +4,7 @@ frameworkVersion: '3'
 
 custom:
   settings:
-    POSTS_TABLE: metadata
+    METADATA_TABLE: metadata
 
 provider:
   name: aws
@@ -27,28 +27,28 @@ provider:
 
 functions:
   storeMetadata:
-    handler: metadataHandler.storeMetadata
+    handler: handler/storeMetadataHandler.storeMetadata
     events:
     - http:
         path: /metadata
         method: post
         
   fetchAllMetadata:
-    handler: metadataHandler.fetchAllMetadata
+    handler: handler/fetchAllMetadataHandler.fetchAllMetadata
     events:
     - http:
         path: /metadata
         method: get
 
   fetchMetadata:
-    handler: metadataHandler.fetchMetadata
+    handler: handler/fetchMetadataHandler.fetchMetadata
     events:
     - http:
         path: /metadata/{meta_store_id}
         method: get
 
   deleteMetadata:
-    handler: metadataHandler.deleteMetadata
+    handler: handler/deleteMetadataHandler.deleteMetadata
     events:
     - http:
         path: /metadata/{meta_store_id}
@@ -68,4 +68,4 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-        TableName: ${self:custom.settings.POSTS_TABLE}
+        TableName: ${self:custom.settings.METADATA_TABLE}
