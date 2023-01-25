@@ -1,25 +1,29 @@
-'use strict';
-const AWS = require('aws-sdk');
+"use strict";
+const AWS = require("aws-sdk");
 
-const { response } = require('../utils');
+const { defineTable, response } = require("../utils");
 
-const metadataTable = process.env.METADATA_TABLE;
-const db = new AWS.DynamoDB.DocumentClient({ apiVersion: '2012-08-10' });
+const db = new AWS.DynamoDB.DocumentClient({ apiVersion: "2012-08-10" });
 
 module.exports.fetchMetadata = (event, context, callback) => {
-    const id = event.pathParameters.meta_store_id;
+    const partitionKey = event.pathParameters.instance_UID;
+    const dicom_level = event.pathParameters.dicom_level;
 
     const params = {
         Key: {
-            meta_store_id: id
+            instance_UID: partitionKey,
         },
-        TableName: metadataTable
-    }
+    };
+    defineTable(params, dicom_level);
 
-    return db.get(params)
+    return db
+        .get(params)
         .promise()
-        .then(res => {
-            if (res.Item) callback(null, response(200, res.Item))
-            else callback(null, response(404, { error: 'Metadata not found' }))
-        }).catch(err => response(null, response(err.statusCode, err + " :  Failed to retrieve metadata")))
-}
+        .then((res) => {
+            if (res.Item) callback(null, response(200, res.Item));
+            else callback(null, response(404, { error: "Metadata not found" }));
+        })
+        .catch((err) =>
+            response(null, response(err.statusCode, err + " :  Failed to retrieve metadata"))
+        );
+};

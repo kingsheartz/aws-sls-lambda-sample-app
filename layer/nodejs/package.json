@@ -1,7 +1,6 @@
 {
-  "name": "sls-api",
+  "name": "metadata-archive-api",
   "version": "1.0.0",
-  "main": "handler.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -9,10 +8,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "uuid": "^9.0.0"
-  },
-  "devDependencies": {
-    "@types/uuid": "^9.0.0"
+    "aws-sdk": "^2.1292.0"
   },
   "description": ""
 }

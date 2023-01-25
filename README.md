@@ -16,7 +16,7 @@ npm install serverless -g
 >## Install all Dependencies
 <br/>
 
-- ### Install all dependencies from a `package.json` file.
+- ### Install all dependencies from layer/nodejs/`package.json` file.
 
 ```sh
 npm install

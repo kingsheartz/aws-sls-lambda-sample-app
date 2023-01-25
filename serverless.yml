@@ -5,6 +5,8 @@ frameworkVersion: '3'
 custom:
   settings:
     METADATA_TABLE: metadata
+    STUDY_TABLE: study
+    SERIES_TABLE: series
 
 provider:
   name: aws
@@ -18,10 +20,19 @@ provider:
         Action:
           - dynamodb:DescribeTable
           - dynamodb:Scan
+          - dynamodb:Query
+          - dynamodb:List*
+          - dynamodb:Get*
+          - dynamodb:Delete*
+          - dynamodb:Update*
           - dynamodb:GetItem
           - dynamodb:PutItem
           - dynamodb:UpdateItem
           - dynamodb:DeleteItem
+          - dynamodb:BatchWriteItem
+          - dynamodb:BatchDeleteItem
+          - s3:PutObject
+          - s3:GetObject
         Resource:
           - "*"
 
@@ -32,40 +43,80 @@ functions:
     - http:
         path: /metadata
         method: post
-        
+    layers:
+      - {Ref: CommonLibsLambdaLayer}
+      
   fetchAllMetadata:
     handler: handler/fetchAllMetadataHandler.fetchAllMetadata
     events:
     - http:
-        path: /metadata
+        path: /metadata/{dicom_level}
         method: get
+    layers:
+      - {Ref: CommonLibsLambdaLayer} 
 
   fetchMetadata:
     handler: handler/fetchMetadataHandler.fetchMetadata
     events:
     - http:
-        path: /metadata/{meta_store_id}
+        path: /metadata/{dicom_level}/{instance_UID}
         method: get
+    layers:
+      - {Ref: CommonLibsLambdaLayer}
 
   deleteMetadata:
     handler: handler/deleteMetadataHandler.deleteMetadata
     events:
     - http:
-        path: /metadata/{meta_store_id}
+        path: /metadata/{dicom_level}/{instance_UID}
         method: delete
-  
+    layers:
+      - {Ref: CommonLibsLambdaLayer}
+
+layers:
+  commonLibs:
+    path: layer
+    compatibleRuntimes: 
+      - nodejs12.x
+
 resources:
   Resources:
-    PostsTable:
+    MetaDataTable:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-        - AttributeName: "meta_store_id"
+        - AttributeName: "sopInstanceUID"
           AttributeType: "S"
         KeySchema:
-        - AttributeName: "meta_store_id"
+        - AttributeName: "sopInstanceUID"
           KeyType: "HASH"
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: ${self:custom.settings.METADATA_TABLE}
+    StudyTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "studyInstanceUID"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "studyInstanceUID"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.settings.STUDY_TABLE}
+    SeriesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "seriesInstanceUID"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "seriesInstanceUID"
+          KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.settings.SERIES_TABLE}
